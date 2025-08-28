@@ -1,5 +1,6 @@
 // URL del stream HLS (m3u8)
-const STREAM_URL = "http://191.103.121.135:2086/americabletv/index.m3u8";
+const STREAM_URL = "https://191.103.121.135:2086/americabletv/index.m3u8";
+
 
 
 // Elementos
