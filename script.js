@@ -2,6 +2,7 @@
 const STREAM_URL = "https://stream.americabletv.com/americabletv/index.m3u8";
 
 
+
 // Elementos
 const video = document.getElementById('videoPlayer');
 const statusEl = document.getElementById('status');
