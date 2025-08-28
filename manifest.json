@@ -1,0 +1,22 @@
+{
+  "name": "VidaTV - Canal 14",
+  "short_name": "VidaTV",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#041014",
+  "theme_color": "#042027",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

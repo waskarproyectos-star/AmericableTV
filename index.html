@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VidaTV / Americable - Canal 14</title>
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#042027">
+
+  <link rel="icon" href="icon-192.png" type="image/png">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <img src="logo-full.jpg" alt="VidaTV Canal 14" class="logo">
+      <div class="title">
+        <h1>VidaTV</h1>
+        <small>Canal 14 — Transmisión en vivo</small>
+      </div>
+    </header>
+
+    <section class="player-area">
+      <div class="player-card">
+        <div class="player-overlay" id="overlay">
+          <img src="logo-full.jpg" alt="VidaTV" class="poster">
+          <div class="overlay-text">
+            <h2>Esperando transmisión...</h2>
+            <p>Cuando la transmisión esté activa el video empezará automáticamente.</p>
+          </div>
+        </div>
+
+        <video id="videoPlayer" controls playsinline webkit-playsinline></video>
+
+        <div class="status-row">
+          <span id="status" class="status">Cargando...</span>
+          <button id="refreshBtn" class="btn ghost">Refrescar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Banner install (aparece solo si no está instalada y es instalable) -->
+    <div id="pwa-banner" class="pwa-banner hidden" role="dialog" aria-hidden="true">
+      <img src="icon-192.png" alt="VidaTV" class="banner-icon">
+      <div class="banner-text">
+        <strong>Instala VidaTV</strong>
+        <span>Agrega la aplicación a tu pantalla para iniciar rápido y sin publicidad.</span>
+      </div>
+      <div class="banner-actions">
+        <button id="installBtn" class="btn primary">Instalar</button>
+        <button id="bannerClose" class="btn ghost">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- Modal con instrucciones iOS -->
+    <div id="ios-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <img src="icon-192.png" alt="VidaTV" class="modal-icon">
+        <h3>Instalar en iPhone / iPad</h3>
+        <ol>
+          <li>Abre Safari (no Chrome).</li>
+          <li>Pulsa <strong>Compartir → Añadir a Pantalla de inicio</strong>.</li>
+          <li>Confirma y aparecerá el icono en tu pantalla.</li>
+        </ol>
+        <button id="iosClose" class="btn primary">Entendido</button>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <small>Hecho para VidaTV • Canal 14</small>
+    </footer>
+  </main>
+
+  <!-- hls.js -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="script.js"></script>
+
+  <script>
+    // Service Worker registration (fallback seguro)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('SW error', err));
+    }
+  </script>
+</body>
+</html>

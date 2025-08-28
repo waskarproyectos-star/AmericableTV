@@ -1,0 +1,9 @@
+[build]
+  publish = "." # o "dist" si usas build tools como Vite o React
+  command = ""
+
+[[redirects]]
+  from = "/stream/*"
+  to = "http://181.188.133.227:8080/:splat"
+  status = 200
+  force = true
