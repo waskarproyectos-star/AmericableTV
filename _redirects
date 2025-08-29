@@ -1,1 +1,5 @@
-/americabletv/*  http://191.103.121.135:2086/americabletv/:splat  200
+[[redirects]]
+from = "/americabletv/*"
+to   = "http://181.188.133.227:8080/:splat"
+status = 200
+force  = true
