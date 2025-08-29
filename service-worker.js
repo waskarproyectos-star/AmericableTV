@@ -1,10 +1,11 @@
-// /service-worker.js
-const CACHE_NAME = 'vidatv-cache-v2';
-const ASSETS_TO_CACHE = [
-  '/',
+// ⚠️ cambia la versión para forzar que todos actualicen
+const CACHE_NAME = 'vidatv-cache-v3';
+
+const ASSETS = [
+  '/',                // tu página
   '/index.html',
-  '/styles.css',
-  '/script.js?v=3',
+  '/styles.css?v=4',  // nota el ?v=4 para bustear
+  '/script.js?v=4',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
@@ -12,43 +13,50 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS_TO_CACHE)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS))
+  );
+  // que tome control inmediato
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  // elimina cachés viejas
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(k => (k !== CACHE_NAME ? caches.delete(k) : null)))
+      Promise.all(keys.map(k => k !== CACHE_NAME ? caches.delete(k) : Promise.resolve()))
     )
   );
+  // toma control de las pestañas abiertas
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+
+  // 1) NUNCA interceptar el streaming ni cross-origin
+  //    (m3u8/ts o cualquier recurso fuera de tu dominio)
   const url = new URL(req.url);
+  const isCross = url.origin !== self.location.origin;
+  const isHLS = url.pathname.endsWith('.m3u8') || url.pathname.endsWith('.ts');
 
-  // 1) NO interceptar recursos de OTRO ORIGEN (ej. https://stream.americabletv.com)
-  if (url.origin !== self.location.origin) return;
-
-  // 2) Si algún día sirves HLS desde este MISMO origen, no lo caches
-  if (url.pathname.endsWith('.m3u8') || url.pathname.includes('/americabletv/')) {
-    event.respondWith(fetch(req));
+  if (isCross || isHLS || url.pathname.startsWith('/americabletv/')) {
+    event.respondWith(fetch(req, { cache: 'no-store' }));
     return;
   }
 
-  // 3) Fallback a index.html SOLO para navegaciones de este origen (SPA)
-  if (req.mode === 'navigate') {
-    event.respondWith((async () => {
-      try { return await fetch(req); }
-      catch { return caches.match('/index.html'); }
-    })());
-    return;
-  }
-
-  // 4) Cache-first simple para assets de este dominio
+  // 2) Para tus assets: cache-first con revalidación básica
   event.respondWith(
-    caches.match(req).then(r => r || fetch(req).catch(() => caches.match(req)))
+    caches.match(req).then((cached) => {
+      const fetchPromise = fetch(req).then((netRes) => {
+        const copy = netRes.clone();
+        // guarda solo si es mismo origen y OK
+        if (netRes.ok && req.method === 'GET') {
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
+        }
+        return netRes;
+      }).catch(() => cached || caches.match('/index.html'));
+      return cached || fetchPromise;
+    })
   );
 });
