@@ -1,11 +1,9 @@
-# Activa la Edge Function SOLO para proxiar el HLS
-[[edge_functions]]
-path = "/americabletv/*"
-function = "hls-proxy"
+[build]
+  publish = "." # o "dist" si usas build tools como Vite o React
+  command = ""
 
-# (Opcional) Fuerza HTTPS en tu dominio
 [[redirects]]
-from = "http://*americabletv.com/*"
-to = "https://americabletv.com/:splat"
-status = 301
-force = true
+  from = "/stream/*"
+  to = "http://181.188.133.227:8080/:splat"
+  status = 200
+  force = true
