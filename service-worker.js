@@ -1,40 +1,39 @@
 // ⚠️ sube versión para bustear caché
-const CACHE_NAME = 'vidatv-cache-v5'; // <- sube versión
-const ASSETS = [
+const CACHE_NAME = 'vidatv-cache-v3';
+
+const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/styles.css?v=5',
-  '/script.js?v=6',    // <- que coincida con el index.html
+  '/styles.css',
+  '/script.js?v=7',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
   '/logo-full.jpg'
 ];
 
-// (opcional pero recomendable para que tome control rápido)
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME ? caches.delete(k) : null)))
+  );
+  self.clients.claim();
+});
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  const url = new URL(req.url);
+  const url = req.url;
 
-  const isCross = url.origin !== self.location.origin;
-  const isHLS = url.pathname.endsWith('.m3u8') || url.pathname.endsWith('.ts');
-
-  // Deja que el navegador gestione el stream/cross-origin (sin respondWith)
-  if (isCross || isHLS) return;
+  // Nunca cachear HLS ni el proxy de Netlify (stream en vivo)
+  if (url.includes('/americabletv/') || url.endsWith('.m3u8') || url.endsWith('.ts')) {
+    return event.respondWith(fetch(req).catch(() => caches.match('/index.html')));
+  }
 
   event.respondWith(
-    caches.match(req).then(cached => {
-      const fetchPromise = fetch(req).then(netRes => {
-        if (netRes.ok && req.method === 'GET') {
-          const copy = netRes.clone();
-          caches.open(CACHE_NAME).then(c => c.put(req, copy));
-        }
-        return netRes;
-      }).catch(() => cached || caches.match('/index.html'));
-      return cached || fetchPromise;
-    })
+    caches.match(req).then(cached => cached || fetch(req).catch(() => caches.match('/index.html')))
   );
 });

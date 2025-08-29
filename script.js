@@ -1,7 +1,5 @@
-// === CONFIG STREAM ===
+// === URL del stream via rewrite Netlify (HTTPS en tu dominio)
 const STREAM_URL = `${location.origin}/americabletv/index.m3u8`;
-console.log('HLS URL =>', STREAM_URL);
-
 
 // === ELEMENTOS PLAYER ===
 const video = document.getElementById('videoPlayer');
@@ -51,6 +49,7 @@ function initPlayer(autoPlay = true) {
   destroyPlayer();
 
   const src = STREAM_URL;
+  console.log('HLS URL =>', src);
 
   if (window.Hls && Hls.isSupported()) {
     hls = new Hls({
@@ -100,7 +99,7 @@ refreshBtn?.addEventListener('click', () => {
   initPlayer();
 });
 
-// Inicializa al cargar
+// Inicializa PWA al cargar
 document.addEventListener('DOMContentLoaded', () => {
   setupPWAInstallFlow();
 });
@@ -168,7 +167,7 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Tu config (la que compartiste)
+// Tu config (la que me pasaste)
 const firebaseConfig = {
   apiKey: "AIzaSyD7DbtBkPCycFUdnLVLJME4048ZCj2NkQQ",
   authDomain: "americabletv.firebaseapp.com",
