@@ -1,5 +1,5 @@
 // === URL del stream via rewrite Netlify (HTTPS en tu dominio)
-const STREAM_URL = `${location.origin}/americabletv/index.m3u8`;
+const STREAM_URL = "https://stream.americabletv.com/americabletv/index.m3u8";
 
 // === ELEMENTOS PLAYER ===
 const video = document.getElementById('videoPlayer');
