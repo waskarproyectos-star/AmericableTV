@@ -1,14 +1,13 @@
-// === CONFIG ===
-// URL ABSOLUTA al subdominio del stream (nunca IP:2086 en el cliente)
+// === CONFIG STREAM ===
 const STREAM_URL = "https://stream.americabletv.com/americabletv/index.m3u8";
 
-// === ELEMENTOS ===
+// === ELEMENTOS PLAYER ===
 const video = document.getElementById('videoPlayer');
 const statusEl = document.getElementById('status');
 const overlay = document.getElementById('overlay');
 const refreshBtn = document.getElementById('refreshBtn');
 
-// PWA
+// === PWA UI ===
 let deferredPrompt = null;
 const banner = document.getElementById('pwa-banner');
 const installBtn = document.getElementById('installBtn');
@@ -16,14 +15,25 @@ const bannerClose = document.getElementById('bannerClose');
 const iosModal = document.getElementById('ios-modal');
 const iosClose = document.getElementById('iosClose');
 
-// === HLS STATE ===
+// === AUTH UI ===
+const authSection = document.getElementById('auth');
+const appSection  = document.getElementById('appSection');
+const loginForm   = document.getElementById('loginForm');
+const loginBtn    = document.getElementById('loginBtn');
+const registerBtn = document.getElementById('registerBtn');
+const resetBtn    = document.getElementById('resetBtn');
+const authMsg     = document.getElementById('authMsg');
+const logoutBtn   = document.getElementById('logoutBtn');
+
 let hls = null;
 let retryTimer = null;
 
-// Utilidad estado
+// --- helpers UI
 function status(text) { if (statusEl) statusEl.textContent = text; }
 function showOverlay() { overlay?.classList?.remove('hidden'); }
 function hideOverlay() { overlay?.classList?.add('hidden'); }
+function showApp()      { appSection.classList.remove('hidden'); authSection.classList.add('hidden'); }
+function showAuth()     { appSection.classList.add('hidden'); authSection.classList.remove('hidden'); }
 
 // Limpia instancias previas
 function destroyPlayer() {
@@ -38,7 +48,7 @@ function initPlayer(autoPlay = true) {
   status('Inicializando player...');
   destroyPlayer();
 
-  const src = STREAM_URL; // absoluta
+  const src = STREAM_URL;
 
   if (window.Hls && Hls.isSupported()) {
     hls = new Hls({
@@ -65,7 +75,6 @@ function initPlayer(autoPlay = true) {
       }
     });
   } else if (video?.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari (nativo)
     video.src = src;
     video.addEventListener('loadedmetadata', () => {
       status('Transmisión lista ✅');
@@ -91,7 +100,6 @@ refreshBtn?.addEventListener('click', () => {
 
 // Inicializa al cargar
 document.addEventListener('DOMContentLoaded', () => {
-  initPlayer();
   setupPWAInstallFlow();
 });
 
@@ -117,29 +125,130 @@ function setupPWAInstallFlow() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    if (!localStorage.getItem('vida_pwa_dismissed')) showBanner();
+    if (!localStorage.getItem('vida_pwa_dismissed')) {
+      banner?.classList?.remove('hidden');
+      banner?.setAttribute('aria-hidden', 'false');
+    }
   });
 
   window.addEventListener('appinstalled', () => {
     localStorage.setItem('vida_pwa_installed', 'true');
-    hideBanner();
+    banner?.classList?.add('hidden');
+    banner?.setAttribute('aria-hidden', 'true');
+  });
+
+  installBtn?.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') localStorage.setItem('vida_pwa_installed', 'true');
+    else localStorage.setItem('vida_pwa_dismissed', 'true');
+    deferredPrompt = null;
+    banner?.classList?.add('hidden');
+  });
+
+  bannerClose?.addEventListener('click', () => {
+    banner?.classList?.add('hidden');
+    localStorage.setItem('vida_pwa_dismissed', 'true');
   });
 }
 
-function showBanner() { banner?.classList?.remove('hidden'); banner?.setAttribute('aria-hidden', 'false'); }
-function hideBanner() { banner?.classList?.add('hidden'); banner?.setAttribute('aria-hidden', 'true'); }
+// ======================
+//  FIREBASE (Auth básico)
+// ======================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-installBtn?.addEventListener('click', async () => {
-  if (!deferredPrompt) { if (isIos()) iosModal?.classList?.remove('hidden'); return; }
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  if (outcome === 'accepted') localStorage.setItem('vida_pwa_installed', 'true');
-  else localStorage.setItem('vida_pwa_dismissed', 'true');
-  deferredPrompt = null;
-  hideBanner();
+// Tu config (la que compartiste)
+const firebaseConfig = {
+  apiKey: "AIzaSyD7DbtBkPCycFUdnLVLJME4048ZCj2NkQQ",
+  authDomain: "americabletv.firebaseapp.com",
+  projectId: "americabletv",
+  storageBucket: "americabletv.firebasestorage.app",
+  messagingSenderId: "718273332164",
+  appId: "1:718273332164:web:ae8f1a3efbb66d4fce5a91",
+  measurementId: "G-1Q1KE2VCRG"
+};
+
+// Init
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// Estado de auth → muestra login o player
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    authMsg.textContent = "";
+    showApp();
+    initPlayer();
+  } else {
+    destroyPlayer();
+    showAuth();
+  }
 });
 
-bannerClose?.addEventListener('click', () => {
-  hideBanner();
-  localStorage.setItem('vida_pwa_dismissed', 'true');
+// Login
+loginForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  authMsg.textContent = "Iniciando...";
+  loginBtn.disabled = true;
+  try {
+    const email = document.getElementById('email').value.trim();
+    const pass  = document.getElementById('password').value;
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (err) {
+    authMsg.textContent = normalizaError(err);
+  } finally {
+    loginBtn.disabled = false;
+  }
 });
+
+// Crear cuenta
+registerBtn?.addEventListener('click', async () => {
+  authMsg.textContent = "Creando cuenta...";
+  loginBtn.disabled = true;
+  try {
+    const email = document.getElementById('email').value.trim();
+    const pass  = document.getElementById('password').value;
+    await createUserWithEmailAndPassword(auth, email, pass);
+    authMsg.textContent = "Cuenta creada. ¡Bienvenido!";
+  } catch (err) {
+    authMsg.textContent = normalizaError(err);
+  } finally {
+    loginBtn.disabled = false;
+  }
+});
+
+// Reset password
+resetBtn?.addEventListener('click', async () => {
+  try {
+    const email = document.getElementById('email').value.trim();
+    if (!email) { authMsg.textContent = "Escribe tu correo para enviar el enlace."; return; }
+    await sendPasswordResetEmail(auth, email);
+    authMsg.textContent = "Te enviamos un enlace para restablecer tu contraseña.";
+  } catch (err) {
+    authMsg.textContent = normalizaError(err);
+  }
+});
+
+// Logout
+logoutBtn?.addEventListener('click', async () => {
+  try { await signOut(auth); } catch {}
+});
+
+// Mensajes de error amigables
+function normalizaError(e){
+  const code = (e?.code || "").toString();
+  if (code.includes("auth/invalid-email")) return "Correo inválido.";
+  if (code.includes("auth/invalid-login-credentials")) return "Correo o contraseña incorrectos.";
+  if (code.includes("auth/user-not-found")) return "Usuario no encontrado.";
+  if (code.includes("auth/weak-password")) return "La contraseña es muy débil (mínimo 6 caracteres).";
+  if (code.includes("auth/email-already-in-use")) return "Ese correo ya está en uso.";
+  return "Ocurrió un error. Intenta de nuevo.";
+}
