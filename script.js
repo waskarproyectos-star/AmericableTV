@@ -1,5 +1,7 @@
 // === CONFIG STREAM ===
-const STREAM_URL = "https://stream.americabletv.com/americabletv/index.m3u8";
+const STREAM_URL = `${location.origin}/americabletv/index.m3u8`;
+console.log('HLS URL =>', STREAM_URL);
+
 
 // === ELEMENTOS PLAYER ===
 const video = document.getElementById('videoPlayer');

@@ -1,16 +1,19 @@
 // ⚠️ sube versión para bustear caché
-const CACHE_NAME = 'vidatv-cache-v4';
-
+const CACHE_NAME = 'vidatv-cache-v5'; // <- sube versión
 const ASSETS = [
   '/',
   '/index.html',
   '/styles.css?v=5',
-  '/script.js?v=5',
+  '/script.js?v=6',    // <- que coincida con el index.html
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
   '/logo-full.jpg'
 ];
+
+// (opcional pero recomendable para que tome control rápido)
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
