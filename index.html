@@ -30,7 +30,7 @@
           </div>
         </div>
 
-        <!-- 👇 importante: crossorigin -->
+        <!-- Importante: crossorigin para reproducir desde subdominio -->
         <video id="videoPlayer" controls playsinline webkit-playsinline crossorigin="anonymous"></video>
 
         <div class="status-row">
@@ -72,17 +72,17 @@
 
   <!-- hls.js -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <!-- 👇 busteamos caché del script -->
+  <!-- Busteo de caché del script -->
   <script src="script.js?v=3"></script>
 
   <script>
-    // Registro del SW (mismo nombre de archivo) + update forzado
+    // Registro/actualización del SW (mismo nombre del archivo)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js?v=2')
         .then(reg => reg.update?.())
         .catch(err => console.warn('SW error', err));
 
-      // Si se activa un SW nuevo, recarga para tomar la versión
+      // Si hay un SW nuevo activo, recargamos
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         window.location.reload();
       });

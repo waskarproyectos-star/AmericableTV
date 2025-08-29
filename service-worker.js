@@ -1,10 +1,10 @@
-// /service-worker.js  (asegúrate que el nombre coincida con el del registro)
+// /service-worker.js
 const CACHE_NAME = 'vidatv-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/styles.css',
-  '/script.js',
+  '/script.js?v=3',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
@@ -32,13 +32,13 @@ self.addEventListener('fetch', (event) => {
   // 1) NO interceptar recursos de OTRO ORIGEN (ej. https://stream.americabletv.com)
   if (url.origin !== self.location.origin) return;
 
-  // 2) Si algún día sirves HLS desde el MISMO origen, tampoco lo caches
+  // 2) Si algún día sirves HLS desde este MISMO origen, no lo caches
   if (url.pathname.endsWith('.m3u8') || url.pathname.includes('/americabletv/')) {
     event.respondWith(fetch(req));
     return;
   }
 
-  // 3) Fallback a index.html SOLO para NAVEGACIONES del mismo origen (SPA)
+  // 3) Fallback a index.html SOLO para navegaciones de este origen (SPA)
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try { return await fetch(req); }
@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4) Cache-first simple para assets de tu dominio
+  // 4) Cache-first simple para assets de este dominio
   event.respondWith(
     caches.match(req).then(r => r || fetch(req).catch(() => caches.match(req)))
   );

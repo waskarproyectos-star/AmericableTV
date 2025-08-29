@@ -1,5 +1,5 @@
 // === CONFIG ===
-// Usa SIEMPRE URL ABSOLUTA al subdominio del stream (sin :2086 en el cliente)
+// URL ABSOLUTA al subdominio del stream (nunca IP:2086 en el cliente)
 const STREAM_URL = "https://stream.americabletv.com/americabletv/index.m3u8";
 
 // === ELEMENTOS ===
@@ -28,35 +28,23 @@ function hideOverlay() { overlay?.classList?.add('hidden'); }
 // Limpia instancias previas
 function destroyPlayer() {
   try {
-    if (hls) {
-      hls.destroy();
-      hls = null;
-    }
-    if (video) {
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-    }
+    if (hls) { hls.destroy(); hls = null; }
+    if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
   } catch (_) {}
 }
 
 // Inicializar reproducción HLS
 function initPlayer(autoPlay = true) {
   status('Inicializando player...');
-  destroyPlayer(); // evita instancias duplicadas
+  destroyPlayer();
 
   const src = STREAM_URL; // absoluta
 
   if (window.Hls && Hls.isSupported()) {
     hls = new Hls({
-      // Arranca de inmediato
       autoStartLoad: true,
-      // Evita caché agresivo en manifiesto
       manifestLoadingTimeOut: 15000,
-      // Asegura que hls.js trate el recurso como CORS (siempre que Cloudflare devuelva CORS)
-      xhrSetup: (xhr) => {
-        xhr.withCredentials = false;
-      },
+      xhrSetup: (xhr) => { xhr.withCredentials = false; },
     });
     hls.loadSource(src);
     hls.attachMedia(video);
@@ -69,11 +57,9 @@ function initPlayer(autoPlay = true) {
 
     hls.on(Hls.Events.ERROR, (event, data) => {
       console.warn('HLS error', data);
-      // Si el server devolvió HTML en vez de m3u8, cae como network+parsing error
       if (data?.type === Hls.ErrorTypes.NETWORK_ERROR || data?.fatal) {
         status('⚠️ No hay transmisión activa o manifiesto inválido');
         showOverlay();
-        // Reintento suave cada 10s por si el encoder vuelve
         clearTimeout(retryTimer);
         retryTimer = setTimeout(() => initPlayer(false), 10000);
       }
