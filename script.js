@@ -1,15 +1,14 @@
-// URL del stream HLS (m3u8)
-const STREAM_URL = "https://191.103.121.135:2086/americabletv/index.m3u8";
+// === CONFIG ===
+// Usa SIEMPRE URL ABSOLUTA al subdominio del stream (sin :2086 en el cliente)
+const STREAM_URL = "https://stream.americabletv.com/americabletv/index.m3u8";
 
-
-
-// Elementos
+// === ELEMENTOS ===
 const video = document.getElementById('videoPlayer');
 const statusEl = document.getElementById('status');
 const overlay = document.getElementById('overlay');
 const refreshBtn = document.getElementById('refreshBtn');
 
-// Instalación PWA
+// PWA
 let deferredPrompt = null;
 const banner = document.getElementById('pwa-banner');
 const installBtn = document.getElementById('installBtn');
@@ -17,66 +16,90 @@ const bannerClose = document.getElementById('bannerClose');
 const iosModal = document.getElementById('ios-modal');
 const iosClose = document.getElementById('iosClose');
 
+// === HLS STATE ===
+let hls = null;
+let retryTimer = null;
+
+// Utilidad estado
+function status(text) { if (statusEl) statusEl.textContent = text; }
+function showOverlay() { overlay?.classList?.remove('hidden'); }
+function hideOverlay() { overlay?.classList?.add('hidden'); }
+
+// Limpia instancias previas
+function destroyPlayer() {
+  try {
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+  } catch (_) {}
+}
+
 // Inicializar reproducción HLS
-function initPlayer() {
+function initPlayer(autoPlay = true) {
   status('Inicializando player...');
+  destroyPlayer(); // evita instancias duplicadas
+
+  const src = STREAM_URL; // absoluta
+
   if (window.Hls && Hls.isSupported()) {
-    const hls = new Hls({ autoStartLoad: true });
-    hls.loadSource(STREAM_URL);
+    hls = new Hls({
+      // Arranca de inmediato
+      autoStartLoad: true,
+      // Evita caché agresivo en manifiesto
+      manifestLoadingTimeOut: 15000,
+      // Asegura que hls.js trate el recurso como CORS (siempre que Cloudflare devuelva CORS)
+      xhrSetup: (xhr) => {
+        xhr.withCredentials = false;
+      },
+    });
+    hls.loadSource(src);
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       status('Transmisión lista ✅');
       hideOverlay();
-      // intentamos reproducir (autoplay puede requerir interacción en algunos móviles)
-      video.play().catch(()=>{ /* silencio si bloqueo autoplay */ });
+      if (autoPlay) video.play().catch(() => {});
     });
 
     hls.on(Hls.Events.ERROR, (event, data) => {
       console.warn('HLS error', data);
-      if (data && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-        status('⚠️ No hay transmisión activa');
+      // Si el server devolvió HTML en vez de m3u8, cae como network+parsing error
+      if (data?.type === Hls.ErrorTypes.NETWORK_ERROR || data?.fatal) {
+        status('⚠️ No hay transmisión activa o manifiesto inválido');
         showOverlay();
+        // Reintento suave cada 10s por si el encoder vuelve
+        clearTimeout(retryTimer);
+        retryTimer = setTimeout(() => initPlayer(false), 10000);
       }
     });
-  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = STREAM_URL;
+  } else if (video?.canPlayType('application/vnd.apple.mpegurl')) {
+    // Safari (nativo)
+    video.src = src;
     video.addEventListener('loadedmetadata', () => {
       status('Transmisión lista ✅');
       hideOverlay();
-    });
+      if (autoPlay) video.play().catch(() => {});
+    }, { once: true });
     video.addEventListener('error', () => {
       status('⚠️ No hay transmisión activa');
       showOverlay();
-    });
+    }, { once: true });
   } else {
     status('❌ Tu navegador no soporta HLS');
     showOverlay();
   }
 }
 
-function status(text) {
-  statusEl.textContent = text;
-}
-
-function showOverlay() {
-  overlay.classList.remove('hidden');
-}
-function hideOverlay() {
-  overlay.classList.add('hidden');
-}
-
 // Botón refrescar
-refreshBtn.addEventListener('click', () => {
+refreshBtn?.addEventListener('click', () => {
   status('Refrescando...');
-  // reload del stream: reconstruimos el player simple
-  try {
-    if (video) {
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-    }
-  } catch(e){ /* ignore */ }
+  clearTimeout(retryTimer);
   initPlayer();
 });
 
@@ -87,88 +110,49 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- PWA install flow & iOS instructions ---
-function isIos() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
+function isIos() { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
 function isInStandaloneMode() {
   return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
       || window.navigator.standalone === true;
 }
 
 function setupPWAInstallFlow() {
-  // Si ya instalada guardada en localStorage, no mostrar nada
-  if (localStorage.getItem('vida_pwa_installed') === 'true' || isInStandaloneMode()) {
-    // no mostramos banner
+  if (localStorage.getItem('vida_pwa_installed') === 'true' || isInStandaloneMode()) return;
+
+  if (isIos()) {
+    setTimeout(() => iosModal?.classList?.remove('hidden'), 1200);
+    iosClose?.addEventListener('click', () => {
+      iosModal?.classList?.add('hidden');
+      localStorage.setItem('vida_pwa_dismissed', 'true');
+    });
     return;
   }
 
-  // iOS: mostrar instrucciones manuales (no dispara beforeinstallprompt)
-  if (isIos()) {
-    // Mostramos modal con pasos si no está instalada
-    // Esperamos un pequeño delay para no molestar en la carga
-    setTimeout(() => {
-      document.getElementById('ios-modal').classList.remove('hidden');
-    }, 1200);
-
-    document.getElementById('iosClose').addEventListener('click', () => {
-      document.getElementById('ios-modal').classList.add('hidden');
-      localStorage.setItem('vida_pwa_dismissed', 'true');
-    });
-
-    return; // iOS no usa beforeinstallprompt estándar
-  }
-
-  // Escuchar beforeinstallprompt
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-
-    // Si el usuario no lo descartó anteriormente, mostrar banner
-    if (!localStorage.getItem('vida_pwa_dismissed')) {
-      showBanner();
-    }
+    if (!localStorage.getItem('vida_pwa_dismissed')) showBanner();
   });
 
-  // Si la app se instala por cualquier otro evento
   window.addEventListener('appinstalled', () => {
-    console.log('PWA instalada');
     localStorage.setItem('vida_pwa_installed', 'true');
     hideBanner();
   });
 }
 
-function showBanner() {
-  banner.classList.remove('hidden');
-  banner.setAttribute('aria-hidden', 'false');
-}
+function showBanner() { banner?.classList?.remove('hidden'); banner?.setAttribute('aria-hidden', 'false'); }
+function hideBanner() { banner?.classList?.add('hidden'); banner?.setAttribute('aria-hidden', 'true'); }
 
-function hideBanner() {
-  banner.classList.add('hidden');
-  banner.setAttribute('aria-hidden', 'true');
-}
-
-// Instalación cuando el usuario pulsa instalar
 installBtn?.addEventListener('click', async () => {
-  if (!deferredPrompt) {
-    // fallback: abrir instrucciones iOS si detectamos Safari
-    if (isIos()) {
-      document.getElementById('ios-modal').classList.remove('hidden');
-    }
-    return;
-  }
+  if (!deferredPrompt) { if (isIos()) iosModal?.classList?.remove('hidden'); return; }
   deferredPrompt.prompt();
   const { outcome } = await deferredPrompt.userChoice;
-  if (outcome === 'accepted') {
-    console.log('Usuario aceptó instalar');
-    localStorage.setItem('vida_pwa_installed', 'true');
-  } else {
-    localStorage.setItem('vida_pwa_dismissed', 'true');
-  }
+  if (outcome === 'accepted') localStorage.setItem('vida_pwa_installed', 'true');
+  else localStorage.setItem('vida_pwa_dismissed', 'true');
   deferredPrompt = null;
   hideBanner();
 });
 
-// Cerrar banner manual
 bannerClose?.addEventListener('click', () => {
   hideBanner();
   localStorage.setItem('vida_pwa_dismissed', 'true');
