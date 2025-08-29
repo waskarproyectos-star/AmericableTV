@@ -1,9 +1,9 @@
 [build]
-  publish = "." # o "dist" si usas build tools como Vite o React
+  publish = "."
   command = ""
 
 [[redirects]]
-  from = "/stream/*"
-  to = "http://181.188.133.227:8080/:splat"
+  from = "/americabletv/*"
+  to   = "http://191.103.121.135:2086/americabletv/:splat"
   status = 200
-  force = true
+  force  = true
