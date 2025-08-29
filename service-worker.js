@@ -1,3 +1,4 @@
+// /service-worker.js  (asegúrate que el nombre coincida con el del registro)
 const CACHE_NAME = 'vidatv-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
@@ -11,7 +12,7 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE)));
+  event.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS_TO_CACHE)));
   self.skipWaiting();
 });
 
@@ -28,40 +29,26 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1) NO interceptar nada que no sea de MISMO ORIGEN (muy importante para el HLS en stream.americabletv.com)
-  if (url.origin !== self.location.origin) {
-    return; // dejamos que el navegador lo maneje (sin SW)
-  }
+  // 1) NO interceptar recursos de OTRO ORIGEN (ej. https://stream.americabletv.com)
+  if (url.origin !== self.location.origin) return;
 
-  // 2) No cachear ni hacer fallback para recursos HLS si algún día los sirvieras en mismo origen
+  // 2) Si algún día sirves HLS desde el MISMO origen, tampoco lo caches
   if (url.pathname.endsWith('.m3u8') || url.pathname.includes('/americabletv/')) {
     event.respondWith(fetch(req));
     return;
   }
 
-  // 3) Solo fallback a index.html en NAVEGACIONES de mismo origen (SPA)
+  // 3) Fallback a index.html SOLO para NAVEGACIONES del mismo origen (SPA)
   if (req.mode === 'navigate') {
-    event.respondWith(
-      (async () => {
-        try {
-          const network = await fetch(req);
-          return network;
-        } catch (e) {
-          return caches.match('/index.html');
-        }
-      })()
-    );
+    event.respondWith((async () => {
+      try { return await fetch(req); }
+      catch { return caches.match('/index.html'); }
+    })());
     return;
   }
 
-  // 4) Estrategia cache-first simple para assets de mismo origen
+  // 4) Cache-first simple para assets de tu dominio
   event.respondWith(
-    caches.match(req).then(resp => resp || fetch(req).then(r => {
-      // opcional: guardar en cache dinámico
-      return r;
-    }).catch(() => {
-      // si falla y es un asset, no devolvemos index.html salvo que sea navegación (ya cubierto arriba)
-      return caches.match(req);
-    }))
+    caches.match(req).then(r => r || fetch(req).catch(() => caches.match(req)))
   );
 });

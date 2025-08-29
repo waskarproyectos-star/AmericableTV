@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#042027">
-
   <link rel="icon" href="icon-192.png" type="image/png">
 </head>
 <body>
@@ -31,7 +30,8 @@
           </div>
         </div>
 
-        <video id="videoPlayer" controls playsinline webkit-playsinline></video>
+        <!-- 👇 importante: crossorigin -->
+        <video id="videoPlayer" controls playsinline webkit-playsinline crossorigin="anonymous"></video>
 
         <div class="status-row">
           <span id="status" class="status">Cargando...</span>
@@ -40,7 +40,6 @@
       </div>
     </section>
 
-    <!-- Banner install (aparece solo si no está instalada y es instalable) -->
     <div id="pwa-banner" class="pwa-banner hidden" role="dialog" aria-hidden="true">
       <img src="icon-192.png" alt="VidaTV" class="banner-icon">
       <div class="banner-text">
@@ -53,7 +52,6 @@
       </div>
     </div>
 
-    <!-- Modal con instrucciones iOS -->
     <div id="ios-modal" class="modal hidden" aria-hidden="true">
       <div class="modal-card">
         <img src="icon-192.png" alt="VidaTV" class="modal-icon">
@@ -74,12 +72,20 @@
 
   <!-- hls.js -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script src="script.js"></script>
+  <!-- 👇 busteamos caché del script -->
+  <script src="script.js?v=3"></script>
 
   <script>
-    // Service Worker registration (fallback seguro)
+    // Registro del SW (mismo nombre de archivo) + update forzado
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('SW error', err));
+      navigator.serviceWorker.register('service-worker.js?v=2')
+        .then(reg => reg.update?.())
+        .catch(err => console.warn('SW error', err));
+
+      // Si se activa un SW nuevo, recarga para tomar la versión
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
     }
   </script>
 </body>
